@@ -184,12 +184,19 @@ func (this APIServiceNextPageInfo) ToMap() map[string]interface{} {
 //}
 
 //PaginateAndFill 进行分页，并获取填充数据
-func Paginate(db *gorm.DB, page *PageInfo, container interface{}) (INextPageInfo, error) {
-	var err error
+func Paginate(db *gorm.DB, page *PageInfo, container interface{}) (INextPageInfo, *gorm.DB) {
 	var nextPageInfo INextPageInfo
 	if page.IsApiServerMode() {
 		//多取1个，用于进行分页判断
-		_ = db.Limit(page.CountPerPage + 1).Find(container)
+		db = db.Limit(page.CountPerPage + 1).Find(container)
+		if db.Error != nil {
+			nextPageInfo = &APIServiceNextPageInfo{
+				HasNext:    false,
+				NextFromId: -1,
+			}
+			
+			return nextPageInfo, db
+		}
 		val := reflect.ValueOf(container)
 		ind := reflect.Indirect(val)
 
@@ -224,7 +231,7 @@ func Paginate(db *gorm.DB, page *PageInfo, container interface{}) (INextPageInfo
 		panic("fix me in paginator")
 	}
 
-	return nextPageInfo, err
+	return nextPageInfo, db
 }
 
 //MockPaginate 模拟进行分页

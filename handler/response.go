@@ -11,8 +11,8 @@ import (
 	"strconv"
 )
 
-type Map map[string]interface{}
-type FillOption map[string]bool
+type Map = map[string]interface{}
+type FillOption = map[string]bool
 
 //Response is a wrapper for the http.ResponseWriter
 //started set to true if response was written to then don't execute other handler
