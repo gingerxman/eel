@@ -3,7 +3,6 @@ package router
 import (
 	go_context "context"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/gingerxman/eel/config"
 	"github.com/gingerxman/eel/handler"
 	"github.com/gingerxman/eel/log"
@@ -29,7 +28,6 @@ type RestResourceRegister struct {
 }
 
 func (this *RestResourceRegister) shouldSkipAuthCheck(endpoint string) bool {
-	spew.Dump(SkipAuthCheckResources)
 	for _, key := range SkipAuthCheckResources {
 		if key == endpoint {
 			log.Logger.Infow("[route] skip jwt check", "endpoint", endpoint)
@@ -43,7 +41,6 @@ func (this *RestResourceRegister) shouldSkipAuthCheck(endpoint string) bool {
 // Implement http.Handler interface.
 func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	startTime := time.Now()
-	log.Logger.Infow("request ", "path", req.URL.Path, "method", req.Method)
 	
 	context := this.pool.Get().(*handler.Context)
 	context.Reset(resp, req)
@@ -118,7 +115,6 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		
 		//check resource params
 		handler.CheckArgs(resource, context)
-		log.Logger.Debugw("after check args", "started", context.Response.Started)
 		if context.Response.Started {
 			context.Response.Flush()
 			goto FinishHandle
@@ -127,7 +123,7 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		//pass param check, do prepare
 		resource.Prepare(context)
 		method := context.Request.Method()
-		log.Logger.Infow("http request method", "method", method)
+		//log.Logger.Infow("http request", "method", method, "path", req.URL.Path)
 		log.Logger.Infow("http params", "params", context.Request.Input())
 		switch method {
 		case "GET":

@@ -1,11 +1,10 @@
 package handler
 
 import (
-	"net/http"
-	"strconv"
-	"net/url"
-	"github.com/gingerxman/eel/log"
 	"encoding/json"
+	"net/http"
+	"net/url"
+	"strconv"
 )
 
 //Request
@@ -142,7 +141,6 @@ func (r *Request) Method() string {
 	if method == "POST" {
 		input := r.Input()
 		_method := input.Get("_method")
-		log.Logger.Infow("_method", "value", _method)
 		if _method == "put" {
 			method = "PUT"
 		} else if _method == "delete" {
