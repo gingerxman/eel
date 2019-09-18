@@ -82,17 +82,6 @@ func (r *RestResource) GetParameters() map[string][]string {
 	return nil
 }
 
-func (r *RestResource) GetBusinessContext() context.Context {
-	return nil
-	//data := r.Ctx.Input.GetData("bContext")
-	//if data == nil {
-	//	return nil
-	//} else {
-	//	bCtx := data.(context.Context)
-	//	return bCtx
-	//}
-}
-
 // prepare for request handling
 func (r *RestResource) Prepare(ctx *Context) {
 	//log.Logger.Debug("in RestResource's Prepare...")

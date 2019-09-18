@@ -2,9 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
+	"github.com/gingerxman/eel/paginate"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 )
 
 //Request
@@ -124,6 +127,51 @@ func (r *Request) GetJSON(key string) map[string]interface{} {
 
 func (r *Request) GetFilters() map[string]interface{} {
 	return r.Filters
+}
+
+func convertToOrmFilter(filters map[string]interface{}) map[string]interface{} {
+	params := make(map[string]interface{})
+	var key string
+	var match string
+	
+	for k, v := range filters {
+		if !(strings.HasPrefix(k, "__f")) {
+			params[k] = v
+		} else {
+			keyString := strings.Split(k, "-")
+			if len(keyString) == 3 {
+				switch keyString[2] {
+				case "equal":
+					match = "exact"
+				case "contain":
+					match = "contains"
+				case "gt", "gte", "lt", "lte", "in":
+					match = keyString[2]
+				case "range":
+					val := v.([]interface{})
+					start, _ := val[0].(json.Number).Int64()
+					stop, _ := val[1].(json.Number).Int64()
+					
+					values := make([]int64, 0)
+					for i := start; i < stop; i++ {
+						values = append(values, i)
+					}
+					
+					match = "in"
+					v = values
+				}
+				key = fmt.Sprintf("%s__%s", keyString[1], match)
+			} else {
+				key = fmt.Sprintf("%s", keyString[1])
+			}
+			params[key] = v
+		}
+	}
+	return params
+}
+
+func (r *Request) GetOrmFilters() map[string]interface{} {
+	return convertToOrmFilter(r.GetFilters())
 }
 
 func (r *Request) GetString(key string, def ...string) string {
@@ -266,4 +314,37 @@ func (r *Request) URL() string {
 
 func (r *Request) Header(key string) string {
 	return r.HttpRequest.Header.Get(key)
+}
+
+func (r *Request) getInt(key string, def ...int) (int, error) {
+	strv := r.Query(key)
+	if len(strv) == 0 && len(def) > 0 {
+		return def[0], nil
+	}
+	return strconv.Atoi(strv)
+}
+
+func (r *Request) GetPageInfo() *paginate.PageInfo {
+	fromParam := r.Query("_p_from")
+	if fromParam != "" {
+		fromId, _ := r.getInt("_p_from")
+		countPerPage, _ := r.getInt("_p_count", 20)
+		return &paginate.PageInfo{
+			Page:         -1,
+			FromId:       fromId,
+			CountPerPage: countPerPage,
+			Mode:         "apiserver",
+			Direction:    "asc",
+		}
+	} else {
+		page, _ := r.getInt("page", 1)
+		countPerPage, _ := r.getInt("count_per_page", 20)
+		return &paginate.PageInfo{
+			Page:         page,
+			FromId:       0,
+			CountPerPage: countPerPage,
+			Mode:         "backend",
+			Direction:    "asc",
+		}
+	}
 }

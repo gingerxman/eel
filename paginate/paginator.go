@@ -1,4 +1,4 @@
-package eel
+package paginate
 
 import (
 	"reflect"
@@ -223,12 +223,9 @@ func Paginate(db *gorm.DB, page *PageInfo, container interface{}) (INextPageInfo
 			}
 		}
 	} else {
-		// var itemCount int64 = 0
-		// db.Count(&itemCount)
-		// nextPageInfo = doPaginate(itemCount, page.Page, page.CountPerPage)
-		// err = db.Limit(nextPageInfo.(PaginateResult).CountInPage).Offset(nextPageInfo.(PaginateResult).Offset).All(container)
-		// return nextPageInfo, err
-		panic("fix me in paginator")
+		itemCount, _ := db.Count()
+		nextPageInfo = doPaginate(itemCount, page.Page, page.CountPerPage)
+		db = db.Limit(nextPageInfo.(PaginateResult).CountInPage).Offset(nextPageInfo.(PaginateResult).Offset).Find(container)
 	}
 
 	return nextPageInfo, db

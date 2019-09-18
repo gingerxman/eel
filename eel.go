@@ -16,6 +16,7 @@ package eel
 
 import (
 	"context"
+	"github.com/gingerxman/eel/paginate"
 	"net/http"
 	"time"
 
@@ -54,10 +55,15 @@ type Middleware = handler.Middleware
 type Model = db.Model
 type DeletableModel = db.DeletableModel
 type FillOption = map[string]bool
+type INextPageInfo = paginate.INextPageInfo
+type PageInfo = paginate.PageInfo
 
 var Logger *zap.SugaredLogger = log.Logger
 var Runtime = config.Runtime
 var Tracer = tracing.Tracer
+var Paginate = paginate.Paginate
+var MockPaginate = paginate.MockPaginate
+
 
 // export Middleware
 type JWTMiddleware = middleware.JWTMiddleware
