@@ -324,6 +324,10 @@ func (r *Request) getInt(key string, def ...int) (int, error) {
 	return strconv.Atoi(strv)
 }
 
+func (r *Request) GetFile(key string) (multipart.File, *multipart.FileHeader, error) {
+	return r.HttpRequest.FormFile(key)
+}
+
 func (r *Request) GetPageInfo() *paginate.PageInfo {
 	fromParam := r.Query("_p_from")
 	if fromParam != "" {
