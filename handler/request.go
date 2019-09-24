@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"fmt"
+	"mime/multipart"
 	"github.com/gingerxman/eel/paginate"
 	"net/http"
 	"net/url"
