@@ -127,6 +127,23 @@ func GetOrmFromContext(ctx context.Context) *gorm.DB {
 	return o.(*gorm.DB)
 }
 
+const SERVICE_MODE_REST = "rest"
+const SERVICE_MODE_CRON = "cron"
+const SERVICE_MODE_EVENT = "event"
+func GetServiceMode() string {
+	serviceMode := config.ServiceConfig.String("system::SERVICE_MODE")
+	if serviceMode != SERVICE_MODE_CRON && serviceMode != SERVICE_MODE_REST && serviceMode != SERVICE_MODE_EVENT {
+		panic(fmt.Sprintf("[CRITICAL] invalid service mode '%s'", serviceMode))
+	}
+	
+	enableCronMode := config.ServiceConfig.DefaultBool("system::ENABLE_CRON_MODE", false)
+	if enableCronMode {
+		serviceMode = SERVICE_MODE_CRON
+	}
+	
+	return serviceMode
+}
+
 type Service struct {
 	Handler *router.RestResourceRegister
 	Server  *http.Server
