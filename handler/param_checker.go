@@ -97,9 +97,9 @@ func CheckArgs(r RestResourceInterface, ctx *Context) {
 				}
 			}
 			
-			for key, value := range actualParams {
+			for key, _ := range actualParams {
 				if strings.HasPrefix(key, "__f") {
-					req.SetFilter(key, value)
+					req.SetFilter(key, actualParams.Get(key))
 				}
 			}
 		}
