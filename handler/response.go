@@ -110,7 +110,7 @@ func (r *Response) Error(errCode string, errMsg string) {
 
 func (r *Response) ErrorWithCode(code int, errCode string, errMsg string, innerErrMsg string) {
 	//r.Status = code
-	r.WriteHeader(code)
+	r.WriteHeader(http.StatusOK)
 	r.JSONWithOption(Map{
 		"code": code,
 		"errCode": errCode,

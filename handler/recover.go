@@ -52,25 +52,11 @@ func RecoverPanic(ctx *Context) {
 		}
 		log.Logger.Error(buffer.String())
 		
-		var resp Map
 		if be, ok := err.(*utils.BusinessError); ok {
-			resp = Map{
-				"code": 500,
-				"data": nil,
-				"errCode": be.ErrCode,
-				"errMsg": be.ErrMsg,
-				"innerErrMsg": "",
-			}
+			ctx.Response.ErrorWithCode(500, be.ErrCode, be.ErrMsg, "")
 		} else {
-			resp = Map{
-				"code": 531,
-				"data": nil,
-				"errCode": "system:exception",
-				"errMsg": fmt.Sprintf("%s", err),
-				"innerErrMsg": "",
-			}
+			ctx.Response.ErrorWithCode(531, "system:exception", fmt.Sprintf("%s", err), "")
 		}
-		ctx.Response.JSON(resp)
 	} else {
 		orm := ctx.Get("orm")
 		if orm != nil {
