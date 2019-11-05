@@ -188,7 +188,11 @@ func Paginate(db *gorm.DB, page *PageInfo, container interface{}) (INextPageInfo
 	var nextPageInfo INextPageInfo
 	if page.IsApiServerMode() {
 		//多取1个，用于进行分页判断
-		db = db.Limit(page.CountPerPage + 1).Find(container)
+		idAttr := "id__lt"
+		if page.IsAsc() {
+			idAttr = "id__gt"
+		}
+		db = db.Where(idAttr, page.FromId).Limit(page.CountPerPage + 1).Find(container)
 		if db.Error != nil {
 			nextPageInfo = &APIServiceNextPageInfo{
 				HasNext:    false,

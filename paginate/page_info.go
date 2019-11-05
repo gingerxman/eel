@@ -31,6 +31,10 @@ func (self *PageInfo) Asc() *PageInfo {
 	return self
 }
 
+func (self *PageInfo) IsAsc() bool {
+	return self.Direction == "asc"
+}
+
 //ExtractPageInfoFromRequest 从Request中抽取page信息
 //func ExtractPageInfoFromRequest(ctx *handler.Context) *PageInfo {
 //	req := ctx.Request
