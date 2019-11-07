@@ -102,7 +102,7 @@ func (this *Resource) request(method string, service string, resource string, da
 			params.Set("_method", "delete")
 		}
 		apiUrl += "?" + params.Encode()
-		log.Logger.Warn("apiUrl: ", apiUrl)
+		log.Logger.Info("apiUrl: ", apiUrl)
 
 		values := url.Values{}
 		for k, v := range data {
@@ -130,7 +130,10 @@ func (this *Resource) request(method string, service string, resource string, da
 	if method != "GET" {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
-	req.Header.Set("AUTHORIZATION", jwtToken)
+	
+	if jwtToken != "" {
+		req.Header.Set("AUTHORIZATION", jwtToken)
+	}
 	
 	//inject open tracing
 	span := opentracing.SpanFromContext(this.Ctx)
@@ -145,7 +148,9 @@ func (this *Resource) request(method string, service string, resource string, da
 
 	//执行request，获得response
 	resp, err := netClient.Do(req)
-	defer resp.Body.Close()
+	if resp != nil {
+		defer resp.Body.Close()
+	}
 
 	if err != nil {
 		return nil, err
@@ -192,9 +197,10 @@ func (this *Resource) Delete(service string, resource string, data handler.Map) 
 }
 
 func (this *Resource) LoginAs(username string) *Resource {
-	resp, err := this.Put("skep", "account.logined_corp_user", handler.Map{
+	password := config.ServiceConfig.String("system::SUPER_PASSWORD")
+	resp, err := this.Put("ginger-account", "login.logined_corp_user", handler.Map{
 		"username": username,
-		"password": "s:66668888",
+		"password": password,
 	})
 	if err != nil {
 		log.Logger.Error(err)
@@ -202,8 +208,12 @@ func (this *Resource) LoginAs(username string) *Resource {
 	}
 	
 	respData := resp.Data()
-	this.CustomJWTToken, _ = respData.Get("sid").String()
+	this.CustomJWTToken, _ = respData.Get("jwt").String()
 	return this
+}
+
+func (this *Resource) LoginAsManager() *Resource {
+	return this.LoginAs("ginger")
 }
 
 func NewResource(ctx context.Context) *Resource {

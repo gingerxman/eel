@@ -22,6 +22,12 @@ type JWTMiddleware struct {
 
 func (this *JWTMiddleware) ProcessRequest(ctx *handler.Context) {
 	if ctx.Get("__shouldSkipAuthCheck").(bool) {
+		var bCtx go_context.Context
+		if config.Runtime.NewBusinessContext != nil {
+			bCtx = config.Runtime.NewBusinessContext(go_context.Background(), ctx.Request.HttpRequest, 0, "", nil) //bCtx is for "business context"
+		}
+		ctx.SetBusinessContext(bCtx)
+		ctx.Set("span", opentracing.SpanFromContext(bCtx))
 		return
 	}
 	
