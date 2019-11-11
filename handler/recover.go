@@ -21,7 +21,7 @@ func RecoverPanic(ctx *Context) {
 	if err := recover(); err != nil {
 		orm := ctx.Get("orm")
 		if orm != nil {
-			log.Logger.Warn("[ORM] rollback transaction")
+			log.Logger.Info("[ORM] rollback transaction")
 			var subSpan opentracing.Span
 			if cachedSpan != nil {
 				subSpan = tracing.CreateSubSpan(rootSpan, "db-rollback")
@@ -50,7 +50,7 @@ func RecoverPanic(ctx *Context) {
 			}
 			buffer.WriteString(fmt.Sprintf("%s:%d\n", file, line))
 		}
-		log.Logger.Error(buffer.String())
+		log.Logger.Info(buffer.String())
 		
 		if be, ok := err.(*utils.BusinessError); ok {
 			ctx.Response.ErrorWithCode(500, be.ErrCode, be.ErrMsg, "")

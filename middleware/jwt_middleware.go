@@ -1,17 +1,15 @@
 package middleware
 
 import (
-	go_context "context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
+	"fmt"
+	"github.com/bitly/go-simplejson"
 	"github.com/gingerxman/eel/config"
 	"github.com/gingerxman/eel/handler"
 	"github.com/gingerxman/eel/log"
 	"strings"
-	"fmt"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/base64"
-	"github.com/bitly/go-simplejson"
-	"github.com/opentracing/opentracing-go"
 )
 
 var SALT string = "030e2cf548cf9da683e340371d1a74ee"
@@ -21,13 +19,12 @@ type JWTMiddleware struct {
 }
 
 func (this *JWTMiddleware) ProcessRequest(ctx *handler.Context) {
+	bCtx := ctx.GetBusinessContext()
 	if ctx.Get("__shouldSkipAuthCheck").(bool) {
-		var bCtx go_context.Context
 		if config.Runtime.NewBusinessContext != nil {
-			bCtx = config.Runtime.NewBusinessContext(go_context.Background(), ctx.Request.HttpRequest, 0, "", nil) //bCtx is for "business context"
+			bCtx = config.Runtime.NewBusinessContext(bCtx, ctx.Request.HttpRequest, 0, "", nil) //bCtx is for "business context"
 		}
 		ctx.SetBusinessContext(bCtx)
-		ctx.Set("span", opentracing.SpanFromContext(bCtx))
 		return
 	}
 	
@@ -81,12 +78,10 @@ func (this *JWTMiddleware) ProcessRequest(ctx *handler.Context) {
 			return
 		}
 		
-		var bCtx go_context.Context
 		if config.Runtime.NewBusinessContext != nil {
-			bCtx = config.Runtime.NewBusinessContext(go_context.Background(), ctx.Request.HttpRequest, userId, jwtToken, js) //bCtx is for "business context"
+			bCtx = config.Runtime.NewBusinessContext(bCtx, ctx.Request.HttpRequest, userId, jwtToken, js) //bCtx is for "business context"
 		}
 		ctx.SetBusinessContext(bCtx)
-		ctx.Set("span", opentracing.SpanFromContext(bCtx))
 	} else {
 		response := handler.MakeErrorResponse(500, "jwt:invalid_jwt_token", "无效的jwt token 5")
 		ctx.Response.JSON(response)

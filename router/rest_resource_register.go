@@ -75,6 +75,17 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		handler.HandleStaticFile(req.URL.Path, context.Response)
 		context.Response.ErrorWithCode(http.StatusNotFound, "resource:can_reach_after_static_file_handler", "无效的endpoint", "")
 	} else {
+		//create business context
+		bCtx := go_context.Background()
+		
+		// add tracing span
+		spanCtx, _ := tracing.Tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+		operationName := fmt.Sprintf("%s %s", req.Method, endpoint)
+		span := tracing.Tracer.StartSpan(operationName, ext.RPCServerOption(spanCtx))
+		bCtx = opentracing.ContextWithSpan(bCtx, span)
+		context.Set("rootSpan", span)
+		context.SetBusinessContext(bCtx)
+		
 		//resource found, go through middlewares
 		for _, middleware := range this.middlewares {
 			middleware.ProcessRequest(context)
@@ -86,12 +97,15 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		}
 		
 		//add tracing span
-		spanCtx, _ := tracing.Tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
-		operationName := fmt.Sprintf("%s %s", req.Method, endpoint)
-		span := tracing.Tracer.StartSpan(operationName, ext.RPCServerOption(spanCtx))
-		bCtx := context.GetBusinessContext()
-		bCtx = opentracing.ContextWithSpan(bCtx, span)
-		context.Set("rootSpan", span)
+		//spanCtx, _ := tracing.Tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
+		//operationName := fmt.Sprintf("%s %s", req.Method, endpoint)
+		//span := tracing.Tracer.StartSpan(operationName, ext.RPCServerOption(spanCtx))
+		//bCtx := context.GetBusinessContext()
+		//bCtx = opentracing.ContextWithSpan(bCtx, span)
+		//context.Set("rootSpan", span)
+		//log.Logger.Debug(">>>>>>>>>>>>> span <<<<<<<<<<<<<<<<")
+		//spew.Dump(bCtx)
+		//spew.Dump(opentracing.SpanFromContext(bCtx))
 		//在结束时，report span
 		defer func() {
 			span := opentracing.SpanFromContext(bCtx)
@@ -102,6 +116,7 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		}()
 		
 		//add gorm's Transaction
+		bCtx = context.GetBusinessContext()
 		if config.Runtime.DB != nil {
 			subSpan := tracing.CreateSubSpan(span, "db-begin")
 			tx := config.Runtime.DB.Begin()
@@ -110,7 +125,6 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 			bCtx = go_context.WithValue(bCtx, "orm", tx)
 			context.Set("orm", tx)
 		}
-		
 		context.SetBusinessContext(bCtx)
 		
 		//check resource params
