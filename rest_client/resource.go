@@ -33,6 +33,14 @@ func (this *ResourceResponse) Data() *simplejson.Json {
 	return this.RespData.Get("data")
 }
 
+func (this *ResourceResponse) ErrCode() string {
+	if this.IsSuccess() {
+		return ""
+	} else {
+		return this.RespData.Get("errCode").MustString()
+	}
+}
+
 type Resource struct {
 	Ctx context.Context
 	CustomJWTToken string
