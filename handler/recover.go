@@ -1,14 +1,16 @@
 package handler
 
 import (
-	"fmt"
 	"bytes"
-	"runtime"
-	"github.com/gingerxman/eel/utils"
+	"context"
+	"fmt"
 	"github.com/gingerxman/eel/log"
-	"github.com/gingerxman/gorm"
 	"github.com/gingerxman/eel/tracing"
+	"github.com/gingerxman/eel/utils"
+	"github.com/gingerxman/gorm"
 	"github.com/opentracing/opentracing-go"
+	"runtime"
+	"runtime/debug"
 )
 
 func RecoverPanic(ctx *Context) {
@@ -70,5 +72,19 @@ func RecoverPanic(ctx *Context) {
 				subSpan.Finish()
 			}
 		}
+	}
+}
+
+// RecoverFromCronTaskPanic crontask的recover
+func RecoverFromCronTaskPanic(ctx context.Context) {
+	o := ctx.Value("orm")
+	if err := recover(); err!=nil{
+		log.Logger.Info("recover from cron task panic...")
+		if o != nil{
+			o.(*gorm.DB).Rollback()
+			log.Logger.Warn("[ORM] rollback transaction for cron task")
+		}
+
+		log.Logger.Warn(string(debug.Stack()))
 	}
 }
