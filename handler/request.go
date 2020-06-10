@@ -126,6 +126,19 @@ func (r *Request) GetJSON(key string) map[string]interface{} {
 	}
 }
 
+func (r *Request) GetFillOptions(key string) FillOption {
+	fillOption := FillOption{}
+	if data, ok := r.Name2JSON[key]; ok {
+		for key, _ := range data {
+			fillOption[key] = true
+		}
+	} else {
+		return fillOption
+	}
+	
+	return fillOption
+}
+
 func (r *Request) GetFilters() map[string]interface{} {
 	return r.Filters
 }
