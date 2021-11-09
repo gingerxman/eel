@@ -60,16 +60,32 @@ func RecoverPanic(ctx *Context) {
 			ctx.Response.ErrorWithCode(531, "system:exception", fmt.Sprintf("%s", err), "")
 		}
 	} else {
-		orm := ctx.Get("orm")
-		if orm != nil {
-			log.Logger.Debug("[ORM] commit transaction")
-			var subSpan opentracing.Span
-			if cachedSpan != nil {
-				subSpan = tracing.CreateSubSpan(rootSpan, "db-commit")
+		respCode := ctx.Response.ResponseWriter.Header().Get("X-Biz-Code")
+		if respCode == "500" {
+			orm := ctx.Get("orm")
+			if orm != nil {
+				log.Logger.Info("[ORM] rollback transaction by respCode")
+				var subSpan opentracing.Span
+				if cachedSpan != nil {
+					subSpan = tracing.CreateSubSpan(rootSpan, "db-rollback")
+				}
+				orm.(*gorm.DB).Rollback()
+				if subSpan != nil {
+					subSpan.Finish()
+				}
 			}
-			orm.(*gorm.DB).Commit()
-			if subSpan != nil {
-				subSpan.Finish()
+		} else {
+			orm := ctx.Get("orm")
+			if orm != nil {
+				log.Logger.Debug("[ORM] commit transaction")
+				var subSpan opentracing.Span
+				if cachedSpan != nil {
+					subSpan = tracing.CreateSubSpan(rootSpan, "db-commit")
+				}
+				orm.(*gorm.DB).Commit()
+				if subSpan != nil {
+					subSpan.Finish()
+				}
 			}
 		}
 	}

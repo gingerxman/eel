@@ -105,6 +105,7 @@ func (r *Response) Content(content []byte, contentType string) error {
 }
 
 func (r *Response) Error(errCode string, errMsg string) {
+	r.Header("X-Biz-Code", "500")
 	r.ErrorWithCode(500, errCode, errMsg, "")
 }
 
@@ -122,6 +123,7 @@ func (r *Response) ErrorWithCode(code int, errCode string, errMsg string, innerE
 
 
 func (r *Response) JSON(data interface{}) {
+	r.Header("X-Biz-Code", "200")
 	r.JSONWithOption(Map{
 		"code": http.StatusOK,
 		"errCode": "",
