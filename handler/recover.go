@@ -55,6 +55,17 @@ func RecoverPanic(ctx *Context) {
 		}
 		log.Logger.Info(buffer.String())
 
+		//记录到sentry
+		{
+			errMsg := ""
+			if be, ok := err.(*utils.BusinessError); ok {
+				errMsg = fmt.Sprintf("%s - %s", be.ErrCode, be.ErrMsg)
+			} else {
+				errMsg = fmt.Sprint(err)
+			}
+			CaptureErrorToSentry(ctx, errMsg)
+		}
+
 		if be, ok := err.(*utils.BusinessError); ok {
 			ctx.Response.ErrorWithCode(500, be.ErrCode, be.ErrMsg, "")
 		} else {
