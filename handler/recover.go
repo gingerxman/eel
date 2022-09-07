@@ -86,6 +86,12 @@ func RecoverPanic(ctx *Context) {
 					subSpan.Finish()
 				}
 			}
+
+			//记录到sentry
+			{
+				errMsg := fmt.Sprintf("%s - %s", ctx.Response.ErrCode, ctx.Response.ErrMsg)
+				CaptureErrorToSentry(ctx, errMsg)
+			}
 		} else {
 			orm := ctx.Get("orm")
 			if orm != nil {
@@ -98,6 +104,12 @@ func RecoverPanic(ctx *Context) {
 				if subSpan != nil {
 					subSpan.Finish()
 				}
+			}
+
+			// 记录GET 500到sentry
+			if respCode == "500" && method == "get" {
+				errMsg := fmt.Sprintf("%s - %s", ctx.Response.ErrCode, ctx.Response.ErrMsg)
+				CaptureErrorToSentry(ctx, errMsg)
 			}
 		}
 	}

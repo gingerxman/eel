@@ -29,16 +29,16 @@ func CaptureErrorToSentry(ctx *Context, err string) {
 		//}
 		return
 	}
-
+	
 	data := make(map[string]interface{})
 	data["err_msg"] = err
 	data["service_name"] = config.ServiceConfig.String("SERVICE_NAME")
-
+	
 	//skipFramesCount := AppConfig.DefaultInt("sentry::SKIP_FRAMES_COUNT", 3)
 	//contextLineCount := AppConfig.DefaultInt("sentry::CONTEXT_LINE_COUNT", 5)
 	//appRootPath := AppConfig.String("appname")
 	//inAppPaths := []string{appRootPath}
-
+	
 	//var sStacktrace *raven.Stacktrace
 	//var sError, ok = err.(error)
 	//if ok {
@@ -52,7 +52,7 @@ func CaptureErrorToSentry(ctx *Context, err string) {
 	data["stack"] = string(debug.Stack())
 	data["raven_http"] = raven.NewHttp(ctx.Request.HttpRequest)
 	data["http_request"] = ctx.Request.HttpRequest
-
+	
 	select {
 	case sentryChannel <- data:
 	default:
@@ -62,18 +62,19 @@ func CaptureErrorToSentry(ctx *Context, err string) {
 		//	metrics.GetSentryChannelTimeoutCounter().Inc()
 		//	Warn("[sentry] push timeout")
 	}
-
+	
 }
 
 func sendSentryPacketV2(data map[string]interface{}) {
 	var packet *raven.Packet
 	errMsg := data["err_msg"].(string)
-
+	log.Logger.Info("[sentry] send one error packet to sentry")
+	
 	//封装http request
 	httpRequest, ok := data["http_request"].(*http.Request)
 	if ok {
 		ravenHttp := raven.NewHttp(httpRequest)
-
+		
 		method := strings.ToLower(httpRequest.Method)
 		if method == "post" || method == "put" || method == "delete" {
 			data := make(map[string]string)
@@ -86,38 +87,38 @@ func sendSentryPacketV2(data map[string]interface{}) {
 			}
 			ravenHttp.Data = data
 		}
-
+		
 		packet = raven.NewPacket(errMsg, ravenHttp)
 	} else {
 		packet = raven.NewPacket(errMsg)
 	}
-
+	
 	//确定extra
 	if extra, ok := data["extra"]; ok {
 		packet.Extra = extra.(map[string]interface{})
 	} else {
 		packet.Extra = make(map[string]interface{})
 	}
-
+	
 	//确定堆栈信息
 	stack, ok := data["stack"].(string)
 	if !ok {
 		stack = "no stack"
 	}
 	packet.Extra["stacktrace"] = stack
-
+	
 	//其他Tag
 	tags := map[string]string{
 		"service_name": data["service_name"].(string),
 	}
-
+	
 	//发送给Raven
 	raven.Capture(packet, tags)
 }
 
 func runSentryWorker(ch chan map[string]interface{}) {
 	log.Logger.Info("[sentry] push-worker is ready to receive message...")
-
+	
 	for {
 		data := <-sentryChannel
 		//metrics.GetSentryChannelUnreadGuage().Set(float64(len(sentryChannel)))
@@ -136,7 +137,7 @@ func startSentryWorker() {
 			go startSentryWorker()
 		}
 	}()
-
+	
 	runSentryWorker(sentryChannel)
 }
 

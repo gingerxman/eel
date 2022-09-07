@@ -18,9 +18,11 @@ type FillOption = map[string]bool
 //started set to true if response was written to then don't execute other handler
 type Response struct {
 	ResponseWriter http.ResponseWriter
-	Started bool
-	Status  int
-	ContentLength int
+	Started        bool
+	Status         int
+	ContentLength  int
+	ErrCode        string
+	ErrMsg         string
 }
 
 func (r *Response) Reset(rw http.ResponseWriter) {
@@ -83,17 +85,17 @@ func (r *Response) Body(content []byte) error {
 	//if output.EnableGzip {
 	//	encoding = ParseEncoding(output.Context.Request)
 	//}
-	
+
 	_, err := buf.Write(content)
 	if err != nil {
 		return err
 	}
-	
+
 	r.Header("Content-Length", strconv.Itoa(len(content)))
 	r.Header("Server", "eel Server v1.0")
 	r.WriteHeader(http.StatusOK)
 	r.ContentLength = len(content)
-	
+
 	io.Copy(r.ResponseWriter, buf)
 	return nil
 }
@@ -112,24 +114,25 @@ func (r *Response) Error(errCode string, errMsg string) {
 func (r *Response) ErrorWithCode(code int, errCode string, errMsg string, innerErrMsg string) {
 	//r.Status = code
 	r.WriteHeader(http.StatusOK)
+	r.ErrCode = errCode
+	r.ErrMsg = errMsg
 	r.JSONWithOption(Map{
-		"code": code,
-		"errCode": errCode,
-		"errMsg": errMsg,
+		"code":        code,
+		"errCode":     errCode,
+		"errMsg":      errMsg,
 		"innerErrMsg": innerErrMsg,
-		"data": nil,
+		"data":        nil,
 	}, true, false)
 }
-
 
 func (r *Response) JSON(data interface{}) {
 	r.Header("X-Biz-Code", "200")
 	r.JSONWithOption(Map{
-		"code": http.StatusOK,
-		"errCode": "",
-		"errMsg": "",
+		"code":        http.StatusOK,
+		"errCode":     "",
+		"errMsg":      "",
 		"innerErrMsg": "",
-		"data": data,
+		"data":        data,
 	}, false, false)
 }
 
