@@ -11,6 +11,7 @@ import (
 	"github.com/opentracing/opentracing-go"
 	"runtime"
 	"runtime/debug"
+	"strings"
 )
 
 func RecoverPanic(ctx *Context) {
@@ -33,15 +34,15 @@ func RecoverPanic(ctx *Context) {
 				subSpan.Finish()
 			}
 		}
-		
+
 		errMsg := ""
 		if be, ok := err.(*utils.BusinessError); ok {
 			errMsg = fmt.Sprintf("%s:%s", be.ErrCode, be.ErrMsg)
-		
+
 		} else {
 			errMsg = fmt.Sprintf("%s", err)
 		}
-		
+
 		var buffer bytes.Buffer
 		buffer.WriteString(fmt.Sprintf("[Unprocessed_Exception] %s\n", errMsg))
 		buffer.WriteString(fmt.Sprintf("Request URL: %s\n", ctx.Request.URL()))
@@ -53,7 +54,7 @@ func RecoverPanic(ctx *Context) {
 			buffer.WriteString(fmt.Sprintf("%s:%d\n", file, line))
 		}
 		log.Logger.Info(buffer.String())
-		
+
 		if be, ok := err.(*utils.BusinessError); ok {
 			ctx.Response.ErrorWithCode(500, be.ErrCode, be.ErrMsg, "")
 		} else {
@@ -61,10 +62,10 @@ func RecoverPanic(ctx *Context) {
 		}
 	} else {
 		respCode := ctx.Response.ResponseWriter.Header().Get("X-Biz-Code")
-		if respCode == "500" {
+		method := strings.ToLower(ctx.Request.HttpRequest.Method)
+		if respCode == "500" && method == "post" {
 			orm := ctx.Get("orm")
 			if orm != nil {
-				log.Logger.Info("[ORM] rollback transaction by respCode")
 				var subSpan opentracing.Span
 				if cachedSpan != nil {
 					subSpan = tracing.CreateSubSpan(rootSpan, "db-rollback")
@@ -94,9 +95,9 @@ func RecoverPanic(ctx *Context) {
 // RecoverFromCronTaskPanic crontask的recover
 func RecoverFromCronTaskPanic(ctx context.Context) {
 	o := ctx.Value("orm")
-	if err := recover(); err!=nil{
+	if err := recover(); err != nil {
 		log.Logger.Info("recover from cron task panic...")
-		if o != nil{
+		if o != nil {
 			o.(*gorm.DB).Rollback()
 			log.Logger.Warn("[ORM] rollback transaction for cron task")
 		}

@@ -22,8 +22,8 @@ var SkipAuthCheckResources = make([]string, 0)
 
 type RestResourceRegister struct {
 	endpoint2resource map[string]handler.RestResourceInterface
-	middlewares       []handler.MiddlewareInterface
-	pool              sync.Pool
+	middlewares []handler.MiddlewareInterface
+	pool sync.Pool
 	sync.RWMutex
 }
 
@@ -67,7 +67,7 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		endpoint = endpoint + "/"
 	}
 	context.Set("__shouldSkipAuthCheck", this.shouldSkipAuthCheck(endpoint))
-	
+
 	//find resource, trigger resource's handle function
 	resource := this.endpoint2resource[endpoint]
 	if resource == nil {
@@ -152,8 +152,8 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 			http.Error(context.Response.ResponseWriter, "Method Not Allowed", 405)
 		}
 	}
-
-FinishHandle:
+	
+	FinishHandle:
 	timeDur := time.Since(startTime)
 	//context.Response.Body([]byte("robert"))
 	//context.Response.JSON(handler.Map{
@@ -183,6 +183,7 @@ func NewRestResourceRegister() *RestResourceRegister {
 	return gRegister
 }
 
+
 // Resources: get all registered resources
 func Resources() []string {
 	resources := make([]string, 0)
@@ -208,9 +209,9 @@ func DoRegisterResource(resource handler.RestResourceInterface) {
 	defer gRegister.Unlock()
 	
 	endpoint := resource.Resource()
-	//pos := strings.LastIndex(endpoint, ".")
-	//endpoint = fmt.Sprintf("/%s/%s/", endpoint[0:pos], endpoint[pos+1:])
-	endpoint = fmt.Sprintf("/%s/", strings.Replace(endpoint, ".", "/", -1))
+	pos := strings.LastIndex(endpoint, ".")
+	endpoint = fmt.Sprintf("/%s/%s/", endpoint[0:pos], endpoint[pos+1:])
+	//apiEndpoint := fmt.Sprintf("/%s/%s/", endpoint[0:pos], endpoint[pos+1:])
 	gRegister.endpoint2resource[endpoint] = resource
 	log.Logger.Infow("[rest_resource] register rest resource", "endpoint", endpoint)
 	
