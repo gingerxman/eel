@@ -1,4 +1,4 @@
-package engine
+package event
 
 //import (
 //	"encoding/json"
@@ -39,7 +39,7 @@ package engine
 //	}
 //}
 //
-//func (this *mnsEngine) Send(data map[string]interface{}, tag string){
+//func (this *mnsEngine) Send(ctx context.Context, data map[string]interface{}, tag string){
 //	client := this.getMnsClient()
 //	topicName := conf.topic
 //	topic := ali_mns.NewMNSTopic(topicName, client)

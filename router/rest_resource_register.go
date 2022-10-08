@@ -22,8 +22,8 @@ var SkipAuthCheckResources = make([]string, 0)
 
 type RestResourceRegister struct {
 	endpoint2resource map[string]handler.RestResourceInterface
-	middlewares []handler.MiddlewareInterface
-	pool sync.Pool
+	middlewares       []handler.MiddlewareInterface
+	pool              sync.Pool
 	sync.RWMutex
 }
 
@@ -34,19 +34,19 @@ func (this *RestResourceRegister) shouldSkipAuthCheck(endpoint string) bool {
 			return true
 		}
 	}
-	
+
 	return false
 }
 
 // Implement http.Handler interface.
 func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.Request) {
 	startTime := time.Now()
-	
+
 	context := this.pool.Get().(*handler.Context)
 	context.Reset(resp, req)
 	defer this.pool.Put(context)
 	defer handler.RecoverPanic(context)
-	
+
 	//determine the resource will handle the request
 	endpoint := req.URL.Path
 	if strings.HasPrefix(endpoint, "/debug/pprof/") {
@@ -61,7 +61,7 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 		}
 		return
 	}
-	
+
 	//complement endpoint's slash
 	if endpoint[len(endpoint)-1] != '/' {
 		endpoint = endpoint + "/"
@@ -77,25 +77,26 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 	} else {
 		//create business context
 		bCtx := go_context.Background()
-		
+
 		// add tracing span
 		spanCtx, _ := tracing.Tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
 		operationName := fmt.Sprintf("%s %s", req.Method, endpoint)
 		span := tracing.Tracer.StartSpan(operationName, ext.RPCServerOption(spanCtx))
 		bCtx = opentracing.ContextWithSpan(bCtx, span)
+		bCtx = go_context.WithValue(bCtx, "restContext", context)
 		context.Set("rootSpan", span)
 		context.SetBusinessContext(bCtx)
-		
+
 		//resource found, go through middlewares
 		for _, middleware := range this.middlewares {
 			middleware.ProcessRequest(context)
-			
+
 			if context.Response.Started {
 				context.Response.Flush()
 				goto FinishHandle
 			}
 		}
-		
+
 		//add tracing span
 		//spanCtx, _ := tracing.Tracer.Extract(opentracing.HTTPHeaders, opentracing.HTTPHeadersCarrier(req.Header))
 		//operationName := fmt.Sprintf("%s %s", req.Method, endpoint)
@@ -114,7 +115,7 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 				span.(opentracing.Span).Finish()
 			}
 		}()
-		
+
 		//add gorm's Transaction
 		bCtx = context.GetBusinessContext()
 		if config.Runtime.DB != nil {
@@ -126,14 +127,14 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 			context.Set("orm", tx)
 		}
 		context.SetBusinessContext(bCtx)
-		
+
 		//check resource params
 		handler.CheckArgs(resource, context)
 		if context.Response.Started {
 			context.Response.Flush()
 			goto FinishHandle
 		}
-		
+
 		//pass param check, do prepare
 		resource.Prepare(context)
 		method := context.Request.Method()
@@ -152,8 +153,8 @@ func (this *RestResourceRegister) ServeHTTP(resp http.ResponseWriter, req *http.
 			http.Error(context.Response.ResponseWriter, "Method Not Allowed", 405)
 		}
 	}
-	
-	FinishHandle:
+
+FinishHandle:
 	timeDur := time.Since(startTime)
 	//context.Response.Body([]byte("robert"))
 	//context.Response.JSON(handler.Map{
@@ -179,10 +180,9 @@ func NewRestResourceRegister() *RestResourceRegister {
 		gRegister.endpoint2resource = make(map[string]handler.RestResourceInterface)
 		gRegister.middlewares = make([]handler.MiddlewareInterface, 0)
 	}
-	
+
 	return gRegister
 }
-
 
 // Resources: get all registered resources
 func Resources() []string {
@@ -190,31 +190,31 @@ func Resources() []string {
 	if gRegister != nil {
 		gRegister.Lock()
 		defer gRegister.Unlock()
-		
+
 		for _, v := range gRegister.endpoint2resource {
 			resource := v.(handler.RestResourceInterface).Resource()
 			if resource != "console.console" {
 				resources = append(resources, resource)
 			}
 		}
-		
+
 		sort.Strings(resources)
 	}
-	
+
 	return resources
 }
 
 func DoRegisterResource(resource handler.RestResourceInterface) {
 	gRegister.Lock()
 	defer gRegister.Unlock()
-	
+
 	endpoint := resource.Resource()
 	pos := strings.LastIndex(endpoint, ".")
 	endpoint = fmt.Sprintf("/%s/%s/", endpoint[0:pos], endpoint[pos+1:])
 	//apiEndpoint := fmt.Sprintf("/%s/%s/", endpoint[0:pos], endpoint[pos+1:])
 	gRegister.endpoint2resource[endpoint] = resource
 	log.Logger.Infow("[rest_resource] register rest resource", "endpoint", endpoint)
-	
+
 	if resource.SkipAuthCheck() {
 		SkipAuthCheckResources = append(SkipAuthCheckResources, endpoint)
 	}
@@ -223,7 +223,7 @@ func DoRegisterResource(resource handler.RestResourceInterface) {
 func DoRegisterMiddleware(middleware handler.MiddlewareInterface) {
 	gRegister.Lock()
 	defer gRegister.Unlock()
-	
+
 	gRegister.middlewares = append(gRegister.middlewares, middleware)
 	log.Logger.Infow("[middleware] register middleware", "name", reflect.TypeOf(middleware))
 }
