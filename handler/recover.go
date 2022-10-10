@@ -104,6 +104,8 @@ func RecoverPanic(ctx *Context) {
 				if subSpan != nil {
 					subSpan.Finish()
 				}
+
+				ctx.EmitAll()
 			}
 
 			// 记录GET 500到sentry
