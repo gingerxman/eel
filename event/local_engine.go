@@ -7,6 +7,7 @@ import (
 	"github.com/gingerxman/eel/log"
 	"github.com/gingerxman/gorm"
 	"runtime/debug"
+	"sync"
 )
 
 // IRestContext 解决循环依赖的临时方案
@@ -36,13 +37,16 @@ func newLocalEngine() *localEngine {
 
 func EmitLocalEvent(eventData map[string]interface{}) {
 	eventName := eventData["_event_name"].(string)
+	var wg sync.WaitGroup
 	for _, h := range getHandlersForEvent(eventName) {
 		log.Logger.Info(fmt.Sprintf("[event] %s emit", eventName))
+		wg.Add(1)
 		go func(handler localEventHandler) {
 			defer func() {
 				if err := recover(); err != nil {
 					log.Logger.Error(string(debug.Stack()))
 				}
+				wg.Done()
 			}()
 
 			ctx := newHandlerCtx()
@@ -52,6 +56,7 @@ func EmitLocalEvent(eventData map[string]interface{}) {
 			}
 		}(h)
 	}
+	wg.Wait()
 }
 
 func newHandlerCtx() context.Context {
