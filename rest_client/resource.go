@@ -12,12 +12,11 @@ import (
 	"time"
 
 	"github.com/bitly/go-simplejson"
-	"os"
-	"github.com/opentracing/opentracing-go/ext"
-	"github.com/opentracing/opentracing-go"
-	"github.com/gingerxman/eel/handler"
 	"github.com/gingerxman/eel/config"
+	"github.com/gingerxman/eel/handler"
 	"github.com/gingerxman/eel/log"
+	"github.com/opentracing/opentracing-go"
+	"github.com/opentracing/opentracing-go/ext"
 )
 
 type ResourceResponse struct {
@@ -42,7 +41,7 @@ func (this *ResourceResponse) ErrCode() string {
 }
 
 type Resource struct {
-	Ctx context.Context
+	Ctx            context.Context
 	CustomJWTToken string
 }
 
@@ -51,14 +50,12 @@ func (this *Resource) request(method string, service string, resource string, da
 	if this.CustomJWTToken != "" {
 		jwtToken = this.CustomJWTToken
 	} else {
-		jwtToken = this.Ctx.Value("jwt").(string)
+		ijwt := this.Ctx.Value("jwt")
+		if ijwt != nil {
+			jwtToken = ijwt.(string)
+		}
 	}
-	
-	usePeanutPure := os.Getenv("USE_PEANUT_PURE")
-	if usePeanutPure == "1" && service == "peanut" {
-		service = "peanut_pure"
-	}
-	
+
 	apiServerHost := config.ServiceConfig.String("api::API_SERVER_HOST")
 	//创建client
 	var netTransport = &http.Transport{
@@ -80,8 +77,8 @@ func (this *Resource) request(method string, service string, resource string, da
 	resource = fmt.Sprintf("%s/%s", resource[:pos], resource[pos+1:])
 
 	//构建request
-	//bytes, _ := json.Marshal(ids)
 	apiUrl := fmt.Sprintf("http://%s/%s/%s/", apiServerHost, service, resource)
+	fmt.Println(apiUrl)
 	var req *http.Request
 	if method == "GET" {
 		for k, v := range data {
@@ -130,7 +127,6 @@ func (this *Resource) request(method string, service string, resource string, da
 
 		req, err = http.NewRequest("POST", apiUrl, strings.NewReader(values.Encode()))
 	}
-	//req, err := http.NewRequest("GET", apiUrl, strings.NewReader(values.Encode()))
 	if err != nil {
 		return nil, err
 	}
@@ -138,21 +134,23 @@ func (this *Resource) request(method string, service string, resource string, da
 	if method != "GET" {
 		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	}
-	
+
 	if jwtToken != "" {
 		req.Header.Set("AUTHORIZATION", jwtToken)
 	}
-	
+
 	//inject open tracing
 	span := opentracing.SpanFromContext(this.Ctx)
-	ext.SpanKindRPCClient.Set(span)
-	ext.HTTPUrl.Set(span, apiUrl)
-	ext.HTTPMethod.Set(span, method)
-	span.Tracer().Inject(
-		span.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(req.Header),
-	)
+	if span != nil {
+		ext.SpanKindRPCClient.Set(span)
+		ext.HTTPUrl.Set(span, apiUrl)
+		ext.HTTPMethod.Set(span, method)
+		span.Tracer().Inject(
+			span.Context(),
+			opentracing.HTTPHeaders,
+			opentracing.HTTPHeadersCarrier(req.Header),
+		)
+	}
 
 	//执行request，获得response
 	resp, err := netClient.Do(req)
@@ -206,7 +204,8 @@ func (this *Resource) Delete(service string, resource string, data handler.Map) 
 
 func (this *Resource) LoginAs(username string) *Resource {
 	password := config.ServiceConfig.String("system::SUPER_PASSWORD")
-	resp, err := this.Put("ginger-account", "login.logined_corp_user", handler.Map{
+	accountService := config.ServiceConfig.DefaultString("system::ACCOUNT_SERVICE", "ginger-account")
+	resp, err := this.Put(accountService, "login.logined_corp_user", handler.Map{
 		"username": username,
 		"password": password,
 	})
@@ -214,14 +213,15 @@ func (this *Resource) LoginAs(username string) *Resource {
 		log.Logger.Error(err)
 		return nil
 	}
-	
+
 	respData := resp.Data()
 	this.CustomJWTToken, _ = respData.Get("jwt").String()
 	return this
 }
 
 func (this *Resource) LoginAsManager() *Resource {
-	return this.LoginAs("ginger")
+	managerAccount := config.ServiceConfig.DefaultString("system::MANAGER_ACCOUNT", "ginger")
+	return this.LoginAs(managerAccount)
 }
 
 func NewResource(ctx context.Context) *Resource {

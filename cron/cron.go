@@ -14,9 +14,9 @@ import (
 )
 
 type CronTask struct {
-	name string
-	spec string
-	taskFunc toolbox.TaskFunc
+	name            string
+	spec            string
+	taskFunc        toolbox.TaskFunc
 	onlyRunThisTask bool
 }
 
@@ -26,12 +26,12 @@ func (this *CronTask) OnlyRun() {
 
 var name2task = make(map[string]*CronTask)
 
-func newTaskCtx() *TaskContext{
+func newTaskCtx() *TaskContext {
 	inst := new(TaskContext)
 	ctx := context.Background()
 	enableDb := config.ServiceConfig.DefaultBool("db::ENABLE_DB", true)
 	var o *gorm.DB
-	if enableDb{
+	if enableDb {
 		o = config.Runtime.DB
 		ctx = context.WithValue(ctx, "orm", o)
 	}
@@ -46,9 +46,9 @@ func newTaskCtx() *TaskContext{
 	return inst
 }
 
-func taskWrapper(task taskInterface) toolbox.TaskFunc{
+func taskWrapper(task taskInterface) toolbox.TaskFunc {
 
-	return func() error{
+	return func() error {
 		taskCtx := newTaskCtx()
 		o := taskCtx.GetOrm()
 		ctx := taskCtx.GetCtx()
@@ -58,11 +58,11 @@ func taskWrapper(task taskInterface) toolbox.TaskFunc{
 		taskName := task.GetName()
 		startTime := time.Now()
 		log.Logger.Info(fmt.Sprintf("[%s] run...", taskName))
-		if o != nil && task.IsEnableTx(){
+		if o != nil && task.IsEnableTx() {
 			o.Begin()
 			fnErr = task.Run(taskCtx)
 			o.Commit()
-		}else{
+		} else {
 			fnErr = task.Run(taskCtx)
 		}
 		dur := time.Since(startTime)
@@ -71,18 +71,18 @@ func taskWrapper(task taskInterface) toolbox.TaskFunc{
 	}
 }
 
-func fetchData(pi pipeInterface){
+func fetchData(pi pipeInterface) {
 	taskName := pi.(taskInterface).GetName()
-	go func(){
-		defer func(){
-			if err := recover(); err!=nil{
+	go func() {
+		defer func() {
+			if err := recover(); err != nil {
 				log.Logger.Warn(string(debug.Stack()))
 				fetchData(pi)
 			}
 		}()
-		for{
+		for {
 			data := pi.GetData()
-			if data != nil{
+			if data != nil {
 				taskCtx := newTaskCtx()
 				log.Logger.Info(fmt.Sprintf("[%s] consume data...", taskName))
 				startTime := time.Now()
@@ -94,14 +94,14 @@ func fetchData(pi pipeInterface){
 	}()
 }
 
-func RegisterPipeTask(pi pipeInterface, spec string) *CronTask{
+func RegisterPipeTask(pi pipeInterface, spec string) *CronTask {
 	task := RegisterTask(pi.(taskInterface), spec)
-	if task != nil{
-		if pi.EnableParallel(){ // 并行模式下，开启通道容量十分之一的goroutine消费通道
-			for i := pi.GetConsumerCount(); i>0; i--{
+	if task != nil {
+		if pi.EnableParallel() { // 并行模式下，开启通道容量十分之一的goroutine消费通道
+			for i := pi.GetConsumerCount(); i > 0; i-- {
 				fetchData(pi)
 			}
-		}else{
+		} else {
 			fetchData(pi)
 		}
 	}
@@ -113,13 +113,13 @@ func RegisterTask(task taskInterface, spec string) *CronTask {
 		tname := task.GetName()
 		wrappedFn := taskWrapper(task)
 		cronTask := &CronTask{
-			name: tname,
-			spec: spec,
-			taskFunc: wrappedFn,
+			name:            tname,
+			spec:            spec,
+			taskFunc:        wrappedFn,
 			onlyRunThisTask: false,
 		}
 		name2task[tname] = cronTask
-		
+
 		return cronTask
 	} else {
 		return nil
@@ -131,13 +131,13 @@ func RegisterTaskInRestMode(task taskInterface, spec string) *CronTask {
 		tname := task.GetName()
 		wrappedFn := taskWrapper(task)
 		cronTask := &CronTask{
-			name: tname,
-			spec: spec,
-			taskFunc: wrappedFn,
+			name:            tname,
+			spec:            spec,
+			taskFunc:        wrappedFn,
 			onlyRunThisTask: false,
 		}
 		name2task[tname] = cronTask
-		
+
 		return cronTask
 	} else {
 		return nil
@@ -146,9 +146,9 @@ func RegisterTaskInRestMode(task taskInterface, spec string) *CronTask {
 
 func RegisterCronTask(tname string, spec string, f toolbox.TaskFunc) *CronTask {
 	cronTask := &CronTask{
-		name: tname,
-		spec: spec,
-		taskFunc: f,
+		name:            tname,
+		spec:            spec,
+		taskFunc:        f,
 		onlyRunThisTask: false,
 	}
 	name2task[tname] = cronTask
