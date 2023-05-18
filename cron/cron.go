@@ -53,16 +53,20 @@ func taskWrapper(task taskInterface) toolbox.TaskFunc {
 		o := taskCtx.GetOrm()
 		ctx := taskCtx.GetCtx()
 
-		defer handler.RecoverFromCronTaskPanic(ctx)
 		var fnErr error
 		taskName := task.GetName()
 		startTime := time.Now()
 		log.Logger.Info(fmt.Sprintf("[%s] run...", taskName))
 		if o != nil && task.IsEnableTx() {
-			o.Begin()
+			tx := o.Begin()
+			ctx = context.WithValue(ctx, "orm", tx)
+			ctx = context.WithValue(ctx, "db_tx_on", true)
+			taskCtx.SetCtx(ctx)
+			defer handler.RecoverFromCronTaskPanic(ctx)
 			fnErr = task.Run(taskCtx)
-			o.Commit()
+			tx.Commit()
 		} else {
+			defer handler.RecoverFromCronTaskPanic(ctx)
 			fnErr = task.Run(taskCtx)
 		}
 		dur := time.Since(startTime)

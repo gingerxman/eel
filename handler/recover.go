@@ -119,11 +119,18 @@ func RecoverPanic(ctx *Context) {
 
 // RecoverFromCronTaskPanic crontask的recover
 func RecoverFromCronTaskPanic(ctx context.Context) {
-	o := ctx.Value("orm")
 	if err := recover(); err != nil {
 		log.Logger.Info("recover from cron task panic...")
-		if o != nil {
-			o.(*gorm.DB).Rollback()
+		var txOn bool
+		var tx interface{}
+		if itx := ctx.Value("db_tx_on"); itx != nil && itx.(bool) {
+			txOn = true
+			if idb := ctx.Value("orm"); idb != nil {
+				tx = idb
+			}
+		}
+		if txOn && tx != nil {
+			tx.(*gorm.DB).Rollback()
 			log.Logger.Warn("[ORM] rollback transaction for cron task")
 		}
 
